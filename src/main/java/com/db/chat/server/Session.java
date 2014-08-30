@@ -17,7 +17,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * Created by Student on 27.08.2014.
  */
 public class Session implements Runnable {
-    private static final ExecutorService executor = Executors.newCachedThreadPool();
+    private static final ExecutorService executor = Executors.newFixedThreadPool(200);
     private static final AtomicBoolean stop = new AtomicBoolean();
 
     private final int id;
@@ -58,13 +58,13 @@ public class Session implements Runnable {
 
     private void receive(BufferedReader reader) throws IOException {
         while (!stop.get()) {
-            System.out.println("Receiving msg from session: " + id);
+//            System.out.println("Receiving msg from session: " + id);
             final String message = reader.readLine();
             if (message == null) {
                 return;
             }
             executor.submit(() -> commandProcessor.process(message));
-            System.out.println(message);
+//            System.out.println(message);
         }
     }
 
@@ -121,9 +121,14 @@ public class Session implements Runnable {
                         }
                     }
                 }
-                String msg = messagesForSession.poll();
+                int messages = 0;
+                StringBuilder bigMsg = new StringBuilder();
+                String msg;
+                while ((msg = messagesForSession.poll()) != null && messages++ < 10) {
+                    bigMsg.append(msg).append("\n");
+                }
                 try {
-                    toClientWriter.send(msg);
+                    toClientWriter.send(bigMsg.toString());
                 } catch (SocketException e) {
                     System.err.println("Socket closed. Message doesn't sent. " + id);
                     close();

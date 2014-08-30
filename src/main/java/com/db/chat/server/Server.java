@@ -20,7 +20,6 @@ public class Server {
     private static final ExecutorService executor = Executors.newCachedThreadPool();
     private static final AtomicBoolean stopped = new AtomicBoolean();
     private static final AtomicInteger sessionIdGen = new AtomicInteger();
-    private static volatile boolean stop = false;
     private final int port;
 
     public static void main(String[] args) {

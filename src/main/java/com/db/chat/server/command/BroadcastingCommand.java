@@ -1,11 +1,10 @@
 package com.db.chat.server.command;
 
-import com.db.chat.server.history.HistoryController;
 import com.db.chat.server.Server;
 import com.db.chat.server.Session;
+import com.db.chat.server.history.HistoryController;
 
 import java.io.IOException;
-import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Collection;
 import java.util.Date;
@@ -14,6 +13,13 @@ import java.util.Date;
  * Created by Student on 27.08.2014.
  */
 class BroadcastingCommand implements Command {
+    // [2014/08/06 15:59:48]
+    private final static ThreadLocal<SimpleDateFormat> dateFormat = new ThreadLocal<SimpleDateFormat>() {
+        @Override
+        protected SimpleDateFormat initialValue() {
+            return new SimpleDateFormat("[yyyy/MM/dd HH:mm:ss] ");
+        }
+    };
     private final Session callerSession;
     private final Collection<Session> sessions;
     private final String message;
@@ -27,15 +33,16 @@ class BroadcastingCommand implements Command {
     @Override
     public void doWork() {
         String timeStamp = generateTimeStamp();
-        System.out.println("Adding to dumper session: " + callerSession.getId());
-        HistoryController.add(timeStamp + message);
-        System.out.println("Added to dumper session: " + callerSession.getId());
+        String msgWithTime = timeStamp + message;
+//        System.out.println("Adding to dumper session: " + callerSession.getId());
+        HistoryController.add(msgWithTime);
+//        System.out.println("Added to dumper session: " + callerSession.getId());
         // yes, by reference
-        sessions.parallelStream().filter(session -> this.callerSession != session).forEach(session -> {
+        sessions.parallelStream().filter(session -> callerSession != session).forEach(session -> {
             try {
-                System.out.println("Sending from session: " + callerSession.getId() + " to session: " + session.getId());
-                session.send(timeStamp + message);
-                System.out.println("Sent from session: " + callerSession.getId() + " to session: " + session.getId());
+//                System.out.println("Sending from session: " + callerSession.getId() + " to session: " + session.getId());
+                session.send(msgWithTime);
+//                System.out.println("Sent from session: " + callerSession.getId() + " to session: " + session.getId());
             } catch (IOException e) {
                 System.err.println("Socket closed by client");
             }
@@ -43,7 +50,6 @@ class BroadcastingCommand implements Command {
     }
 
     private String generateTimeStamp() {
-        DateFormat dateFormat = new SimpleDateFormat("[yyyy/MM/dd HH:mm:ss] "); // [2014/08/06 15:59:48]
-        return dateFormat.format(new Date());
+        return dateFormat.get().format(new Date());
     }
 }

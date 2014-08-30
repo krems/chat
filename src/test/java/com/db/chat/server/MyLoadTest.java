@@ -24,13 +24,13 @@ public class MyLoadTest {
         final Client clientReceiver = new Client("127.0.0.1", 13000,
                 new InputStreamReader(System.in),
                 new OutputStreamWriter(income));
-        Thread receiver = new Thread(clientReceiver::start);
-        Thread sender = new Thread(clientSender::start);
+        final Thread receiver = new Thread(clientReceiver::start);
+        final Thread sender = new Thread(clientSender::start);
         receiver.start();
         Thread.sleep(10);
         sender.start();
 
-        for (int i = 0; i < 1_000_000; ++i) {
+        while (true) {
             String act = new String(income.toByteArray());
             if (act.contains(testMsg)) {
                 break;

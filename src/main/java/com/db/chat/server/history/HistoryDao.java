@@ -87,8 +87,8 @@ class HistoryDao implements AutoCloseable {
         private ConnectionHolder() {
             try {
                 connection = createConnection();
-                insertStatement = connection.prepareStatement("INSERT INTO TABLE_NAME(DATE, MESSAGE) VALUES (1, ?)");
-                selectStatement = connection.prepareStatement("SELECT MESSAGE FROM TABLE_NAME ");
+                insertStatement = connection.prepareStatement("insert into HISTORY(MESSAGE) value (?)");
+                selectStatement = connection.prepareStatement("select MESSAGE from HISTORY");
             } catch (SQLException e) {
                 throw new IllegalStateException("Seems like no more connections available!", e);
             } catch (Exception e) {

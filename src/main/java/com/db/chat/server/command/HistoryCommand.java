@@ -20,14 +20,18 @@ class HistoryCommand implements Command {
     @Override
     public void doWork() {
         try {
-            session.send("HISTORY!!!");
             List<String> hist = Server.getHistoryController().getHistory();
             StringBuilder msgs = new StringBuilder();
             for (String msg : hist) {
                 msgs.append(msg);
                 msgs.append("\n");
             }
-            session.send(msgs.toString());
+            String toSend = msgs.toString();
+            if (toSend.isEmpty()) {
+                session.send("No history available now");
+            } else {
+                session.send(toSend);
+            }
             HistoryController.flush();
         } catch (SocketException e) {
             System.err.println("Socket closed. History doesn't sent");
