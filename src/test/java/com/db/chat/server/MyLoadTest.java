@@ -9,11 +9,11 @@ import java.util.Random;
 /**
  * Created by Student on 29.08.2014.
  */
-public class LoadTest {
+public class MyLoadTest {
 
     private final Random rnd = new Random();
 
-    @Test
+    @Test(timeout = 5_000)
     public void shouldServerReceiveAndSendMessageWhenClientSendManyMessages() throws IOException, InterruptedException {
         final String testMsg = rnd.nextLong() + Thread.currentThread().getName();
         final ByteArrayOutputStream income = new ByteArrayOutputStream();
@@ -29,9 +29,8 @@ public class LoadTest {
         receiver.start();
         Thread.sleep(10);
         sender.start();
-        Thread.sleep(10);
 
-        for (int i = 0; i < 100_000; ++i) {
+        for (int i = 0; i < 1_000_000; ++i) {
             String act = new String(income.toByteArray());
             if (act.contains(testMsg)) {
                 break;
