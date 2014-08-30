@@ -1,4 +1,4 @@
-package com.db.chat.server;
+package com.db.chat.server.history;
 
 import java.sql.*;
 import java.util.*;
@@ -6,7 +6,9 @@ import java.util.*;
 /**
  * Created by Student on 28.08.2014.
  */
-public class HistoryDao implements AutoCloseable {
+class HistoryDao implements AutoCloseable {
+    private static final String HOST = "127.0.0.1";
+    private static final String PORT = "1527";
 
     public void saveMessages(Queue<String> messages) {
         ConnectionHolder holder = null;
@@ -48,12 +50,12 @@ public class HistoryDao implements AutoCloseable {
         ConnectionHolder holder = null;
         try {
             holder = ConnectionHolderPool.getConnectionHolder();
-            List<String> list = new ArrayList<>();
+            List<String> historyMessages = new ArrayList<>();
             ResultSet resultSet = holder.selectStatement.executeQuery();
             while (resultSet.next()) {
-                list.add(resultSet.getString("MESSAGE"));
+                historyMessages.add(resultSet.getString("MESSAGE"));
             }
-            return list;
+            return historyMessages;
         } catch (SQLException e) {
             System.err.println("Couldn't load messages");
 //            e.printStackTrace();
@@ -71,9 +73,16 @@ public class HistoryDao implements AutoCloseable {
     }
 
     private static class ConnectionHolder {
-        Connection connection;
-        PreparedStatement insertStatement;
-        PreparedStatement selectStatement;
+        static {
+            try {
+                Class.forName("org.apache.derby.jdbc.ClientDriver");
+            } catch (ClassNotFoundException e) {
+                System.err.println("DB driver not found ");
+            }
+        }
+        final Connection connection;
+        final PreparedStatement insertStatement;
+        final PreparedStatement selectStatement;
 
         private ConnectionHolder() {
             try {
@@ -84,20 +93,14 @@ public class HistoryDao implements AutoCloseable {
                 throw new IllegalStateException("Seems like no more connections available!", e);
             } catch (Exception e) {
                 System.err.println("Something wrong with db");
+                throw e;
 //                e.printStackTrace();
             }
         }
 
         private Connection createConnection() throws SQLException {
             try {
-                Class.forName("org.apache.derby.jdbc.ClientDriver");
-            } catch (ClassNotFoundException e) {
-                System.err.println("Driver not found ");
-                System.exit(0);
-            }
-            try {
-                //192.168.1.105
-                return DriverManager.getConnection("jdbc:derby://192.168.1.105:1527/team-01;create=true");
+                return DriverManager.getConnection("jdbc:derby://" + HOST + ":" + PORT + "/team-01;create=true");
             } catch (SQLException e) {
                 System.err.println("Couldn't create connection");
 //                e.printStackTrace();
@@ -119,8 +122,7 @@ public class HistoryDao implements AutoCloseable {
     }
 
     private static class ConnectionHolderPool {
-        private static final Collection<ConnectionHolder> pool
-                = Collections.synchronizedCollection(new LinkedList<ConnectionHolder>());
+        private static final Collection<ConnectionHolder> pool = Collections.synchronizedCollection(new LinkedList<>());
 
         public static ConnectionHolder getConnectionHolder() {
             if (pool.isEmpty()) {

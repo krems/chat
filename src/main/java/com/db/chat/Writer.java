@@ -13,18 +13,13 @@ public class Writer {
         this.writer = writer;
     }
 
-
     public void send(String msg) throws IOException {
-//        if (!stop) {
-            synchronized (writer) {
-                writer.write(msg);
-                writer.newLine();
-//                writer.flush();
-            }
-//        }
+        synchronized (writer) {
+            writer.write(msg);
+            writer.newLine();
+            writer.flush();
+        }
     }
-    public void end() throws IOException {
-//        stop = true;
-    }
+
 }
 

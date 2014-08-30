@@ -3,7 +3,7 @@ package com.db.chat.server.command;
 /**
  * Created by Student on 29.08.2014.
  */
-public enum Commands {
+enum Commands {
     SEND("/snd "),
     REQUEST_HISTORY("/hist");
 

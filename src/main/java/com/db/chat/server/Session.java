@@ -1,19 +1,27 @@
 package com.db.chat.server;
 
 import com.db.chat.Writer;
+import com.db.chat.server.command.CommandProcessor;
 
 import java.io.*;
 import java.net.Socket;
 import java.net.SocketException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Created by Student on 27.08.2014.
  */
 public class Session implements Runnable {
+    private static final ExecutorService executor = Executors.newCachedThreadPool();
+    private static final AtomicBoolean stop = new AtomicBoolean();
+
     private final int id;
     protected final Socket socket;
-    protected Writer writer;
-    protected Receiver receiver;
+    protected Writer toClientWriter;
+    private CommandProcessor commandProcessor;
 
     public Session(int id, Socket socket) {
         this.id = id;
@@ -22,40 +30,17 @@ public class Session implements Runnable {
 
     @Override
     public void run() {
-        BufferedWriter writer = null;
-        BufferedReader reader = null;
-        try {
-            writer = createWriter(socket);
-            reader = this.createReader(socket);
-            this.writer = new Writer(writer);
-            this.receiver = new Receiver(reader, this);
-            this.receiver.startReceiving();
+        commandProcessor = new CommandProcessor(this);
+        try (BufferedReader socketReader = createReader(socket);
+             BufferedWriter socketWriter = createWriter(socket)) {
+            toClientWriter = new Writer(socketWriter);
+            receive(socketReader);
         } catch (IOException e) {
             System.err.println("Socket closed by client " + id);
         } catch (Throwable e) {
             System.err.println("Something wrong with session " + id);
         } finally {
-            try {
-                if (writer != null) {
-                    synchronized (writer) {
-                        writer.close();
-                    }
-                }
-            } catch (IOException e) {
-                //
-            } finally {
-                try {
-                    if (reader != null) {
-                        synchronized (reader) {
-                            reader.close();
-                        }
-                    }
-                } catch (IOException e) {
-                    //
-                } finally {
-                    close();
-                }
-            }
+            close();
         }
     }
 
@@ -67,9 +52,21 @@ public class Session implements Runnable {
         return new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
     }
 
+    private void receive(BufferedReader reader) throws IOException {
+        while (!stop.get()) {
+            System.out.println("Receiving msg from session: " + id);
+            final String message = reader.readLine();
+            if (message == null) {
+                return;
+            }
+            executor.submit(() -> commandProcessor.process(message));
+            System.out.println(message);
+        }
+    }
+
     public void send(String msg) throws SocketException {
         try {
-            writer.send(msg);
+            toClientWriter.send(msg);
         } catch (SocketException e) {
             System.err.println("Socket closed. Message doesn't sent. " + id);
             close();
@@ -82,21 +79,32 @@ public class Session implements Runnable {
         }
     }
 
-    public void end() throws IOException {
-        send("Server is shutting down");
-        this.socket.shutdownInput();
-        this.socket.shutdownOutput();
-        this.socket.close();
-
-        this.receiver.end();
-    }
-
     public int getId() {
         return id;
     }
 
+    public void stop() throws IOException {
+        send("Server is shutting down");
+        close();
+        if (!stop.compareAndSet(false, true)) {
+            return;
+        }
+
+        executor.shutdown();
+        try {
+            executor.awaitTermination(10, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+//            e.printStackTrace();
+            return;
+        }
+        executor.shutdownNow();
+    }
+
     public void close() {
         try {
+            socket.shutdownInput();
+            socket.shutdownOutput();
             socket.close();
         } catch (IOException e) {
             System.err.println("Error closing socket " + id);

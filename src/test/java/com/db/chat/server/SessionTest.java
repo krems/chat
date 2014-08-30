@@ -16,7 +16,6 @@ import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -66,8 +65,8 @@ public class SessionTest {
             public void run() {
                 try (BufferedReader reader = this.createReader(this.socket);
                      BufferedWriter writer = createWriter(this.socket)) {
-                    this.writer = new Writer(writer);
-                    this.receiver = new Receiver(reader, this);
+                    this.toClientWriter = new Writer(writer);
+//                    this.receiver = new Receiver(reader, this);
                 } catch (IOException e) {
                     e.printStackTrace();
                 }

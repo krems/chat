@@ -1,11 +1,12 @@
 package com.db.chat.server;
 
+import com.db.chat.server.history.HistoryController;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.Collection;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -13,23 +14,37 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class Server {
+    private static final int DEFAULT_PORT = 13000;
     private static final SessionRegistry SESSION_REGISTRY = new SessionRegistry();
-    private static final ExecutorService executor = Executors.newFixedThreadPool(1000);
+    private static final HistoryController HISTORY_CONTROLLER = new HistoryController();
+    private static final ExecutorService executor = Executors.newCachedThreadPool();
     private static final AtomicBoolean stopped = new AtomicBoolean();
     private static final AtomicInteger sessionIdGen = new AtomicInteger();
-    private static final HistoryDao historyDao = new HistoryDao();
     private static volatile boolean stop = false;
     private final int port;
 
     public static void main(String[] args) {
-        new Server(13000).startServer();
+        if (args.length == 0) {
+            new Server(DEFAULT_PORT).startServer();
+        } else if (args.length == 1) {
+            try {
+                new Server(Integer.parseInt(args[0]));
+            } catch (NumberFormatException e) {
+                System.err.println("Port must be a number");
+                printUsage();
+            }
+        } else {
+            System.err.println("Illegal number of arguments!");
+            printUsage();
+        }
     }
 
     public void startServer() {
-        fireHistoryDumper();
+        fireHistoryController();
+        Thread finisher = new Thread(new ServerConsole());
+        finisher.setDaemon(true);
+        finisher.start();
         try (ServerSocket listener = new ServerSocket(port)) {
-            Thread finisher = new Thread(new Finisher());
-            finisher.start();
             while (!stopped.get()) {
                 Socket socket = listener.accept();
                 Session newSession = new Session(sessionIdGen.incrementAndGet(), socket);
@@ -43,72 +58,71 @@ public class Server {
     }
 
     public void stop(long timeoutMillis) {
-        stopped.set(true);
-        executor.shutdown();
-        try {
-            executor.awaitTermination(timeoutMillis, TimeUnit.MILLISECONDS);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
+        if (stopped.compareAndSet(false, true)) {
+            executor.shutdown();
+            try {
+                executor.awaitTermination(timeoutMillis, TimeUnit.MILLISECONDS);
+                executor.shutdownNow();
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
 //            e.printStackTrace();
-            return;
+                return;
+            }
+            System.exit(0);
         }
-        executor.shutdownNow();
-        try {
-            Thread.sleep(1000);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-        System.exit(0);
     }
 
     public static SessionRegistry getSessionRegistry() {
         return SESSION_REGISTRY;
     }
 
-    private void fireHistoryDumper() {
-        Thread historyDumper = new Thread(new HistoryDumper());
+    public static HistoryController getHistoryController() {
+        return HISTORY_CONTROLLER;
+    }
+
+    private void fireHistoryController() {
+        Thread historyDumper = new Thread(HISTORY_CONTROLLER);
         historyDumper.setDaemon(true);
         historyDumper.setName("HistoryDumper");
         historyDumper.start();
     }
 
-
-    public static HistoryDao getHistoryDao() {
-        return historyDao;
-    }
-    public Server(int port) {
+    private Server(int port) {
         this.port = port;
     }
-    class Finisher implements Runnable {
 
+    private class ServerConsole implements Runnable {
         @Override
         public void run() {
-            String line = new String();
-            while(!stopped.get()) {
-
-                BufferedReader finishLine = new BufferedReader(new InputStreamReader(System.in));
+            String cmd;
+            BufferedReader consoleReader = new BufferedReader(new InputStreamReader(System.in));
+            while (!stopped.get()) {
                 try {
-                    line = finishLine.readLine();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-                if (line.startsWith("/stop")) {
-
-                    Collection<Session> sessions = SESSION_REGISTRY.getSessions();
-                    for (Session session : sessions) {
-                        try {
-                            session.end();
-
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
+                    cmd = consoleReader.readLine();
+                    if ("/q".equals(cmd) || cmd.startsWith("/stop") ||
+                            cmd.startsWith("/quit") || cmd.startsWith("/exit")) {
+                        SESSION_REGISTRY.getSessions().parallelStream().forEach(
+                                (session) -> {
+                                    try {
+                                        session.stop();
+                                    } catch (IOException e) {
+                                        System.err.println("Error stopping server");
+//                                    e.printStackTrace();
+                                    }
+                                });
+                        HistoryController.flush();
+                        stop(300);
                     }
-                    HistoryDumper.flush();
-                    stop(10);
-
+                } catch (IOException e) {
+                    System.err.println("Something wrong with console");
+//                    e.printStackTrace();
                 }
             }
-
         }
+    }
+
+    private static void printUsage() {
+        System.err.println("Usage: Server <port>\nor\nServer\nDefault port is " + DEFAULT_PORT);
     }
 }

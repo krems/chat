@@ -20,17 +20,17 @@ public class ClientTest {
 //
 //        Thread t = new Thread(new Runnable() {
 //            @Override
-//            public void run() {
+//            public void start() {
 //
 //                try {
 //                    Socket socket = serverSocket.accept();
 //                    try (BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-//                         BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()))) {
+//                         BufferedWriter toClientWriter = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()))) {
 //                            String message = reader.readLine();
 //                            org.junit.Assert.assertEquals(EXPECTED_GREETING,message);
-//                            writer.write(EXPECTED_BUY);
-//                            writer.newLine();
-//                            writer.flush();
+//                            toClientWriter.write(EXPECTED_BUY);
+//                            toClientWriter.newLine();
+//                            toClientWriter.flush();
 //                    }
 //                } catch (IOException e) {
 //                }
@@ -38,11 +38,11 @@ public class ClientTest {
 //        }
 //
 //        );
-//        t.start();
+//        t.receive();
 //
 //      //  InputStreamReader isr = new InputStreamReader(new ByteArrayInputStream( "Str".getBytes( ));
 //        Client client = new Client("127.0.0.1", PORT);
-//        client.run();
+//        client.start();
     }
 
 }

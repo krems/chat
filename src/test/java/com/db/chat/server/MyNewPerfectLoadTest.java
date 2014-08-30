@@ -3,13 +3,10 @@ package com.db.chat.server;
 import com.db.chat.Writer;
 import org.junit.Ignore;
 import org.junit.Test;
-import org.junit.rules.Timeout;
 
 import java.io.*;
 import java.net.Socket;
-import java.util.HashSet;
 import java.util.Random;
-import java.util.Set;
 
 /**
  * Created by Student on 29.08.2014.
@@ -18,6 +15,7 @@ public class MyNewPerfectLoadTest {
 
     private final Random rnd = new Random();
 
+    @Ignore
     @Test
     public void shouldServerReceiveAndSendMessageWhenClientSendManyMessages() throws IOException {
         try {
