@@ -102,7 +102,7 @@ public class Server {
                     cmd = consoleReader.readLine();
                     if ("/q".equals(cmd) || cmd.startsWith("/stop") ||
                             cmd.startsWith("/quit") || cmd.startsWith("/exit")) {
-                        SESSION_REGISTRY.getSessions().parallelStream().forEach(
+                        SESSION_REGISTRY.getSessions().stream().forEach(
                                 (session) -> {
                                     try {
                                         session.stop();

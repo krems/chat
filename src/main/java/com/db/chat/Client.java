@@ -104,7 +104,7 @@ public class Client {
         }
     }
 
-    private void stop() {
+    public void stop() {
         try {
             readerFromClient.close();
             writerFromClient.close();
